@@ -1,3 +1,5 @@
+# ./check_mysql_health --hostname=sahidose --database sahi --username=sahi --password=sahipw --mode=my-sahi-suite --name='testcase0-4.suite' --timeout 3600
+
 package MySahi;
 our @ISA = qw(DBD::MySQL::Server); 
 
@@ -39,9 +41,9 @@ $DB::single = 1;
         if ($params{mode} =~ /my::sahi::suite/) {
                 # Suite --------------------------------------------
                 my @suite = $params{handle}->fetchrow_array(q{
-                        SELECT id,name,warning,critical
-                        FROM sahi_suites ss
-                        WHERE ss.name = ? 
+                        SELECT ss.id,ss.name,ss.warning,ss.critical
+                        FROM sahi_suites ss, sahi_jobs sj
+                        WHERE (ss.name = ?) and (ss.guid = sj.guid)
                         ORDER BY ss.id DESC LIMIT 1
                 }, $params{name});
 
@@ -54,7 +56,7 @@ $DB::single = 1;
                 @suitehash{qw(id name warning critical)} = @suite;
                 $self->{suite} = \@suite;      
 
-				                # Case ---------------------------------------------
+		# Case ---------------------------------------------
                 my @cases = $params{handle}->fetchall_array(q{
                         SELECT id,result,name,start,stop,warning,critical,sahi_suites_id,duration,time,msg
                         FROM sahi_cases sc

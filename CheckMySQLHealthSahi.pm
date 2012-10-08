@@ -56,7 +56,10 @@ sub init {
         if ($params{mode} =~ /my::sahi::suite/) {
 		$self->{suite} = get_suite(%params);
 		($self->{cases},$self->{steps}) = get_cases($self->{suite}->{id}, %params);
+        } elsif ($params{mode} =~ /my::sahi::case/) {
+		($self->{cases},$self->{steps}) = get_cases($params{name}, %params);
         }
+
 }
 
 sub nagios {
@@ -64,10 +67,12 @@ sub nagios {
         my $self = shift;
         my %params = @_;
         my $runtime = 0;
+	my $casecount= 0;
         foreach my $c_ref (@{$self->{cases}}) {
                 my $case_output = "";
                 my $case_result = 0;
                 my $case_db_result = 0;
+		$casecount++;
 
                 $runtime += $c_ref->{duration};
                 # 1. Fatal exception
@@ -82,19 +87,28 @@ sub nagios {
                                 "case",$c_ref->{name},$c_ref->{duration},($case_db_result == 2 ? $c_ref->{warning} : $c_ref->{critical}));
                 }
                 # 2.2 Step duration
+		my $stepcount = 0;
                 foreach my $s_ref (@{$self->{steps}->{$c_ref->{id}}}) {
+			$stepcount++;
                         if (step_duration_result($s_ref->{duration}, $s_ref->{warning})) {
                                 $case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
-                                $case_result = worststate($case_db_result,1);
+                                $case_result = $ERRDB2NAG{worststate($case_db_result,1)};
                         }
-                        $self->add_perfdata(sprintf("%s=%0.2fs;%d;;;",$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
+                        $self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
                 }
                 # final case result
                 $self->add_nagios($case_result, sprintf("%s %s", $STATELABELS{$case_result}, $case_output));
-                $self->add_perfdata(sprintf("%s=%0.2fs;%d;%d;;",$c_ref->{name},$c_ref->{duration},$c_ref->{warning},$c_ref->{critical}));
+                $self->add_perfdata(sprintf("c_%d_%s=%0.2fs;%d;%d;;",$casecount,$c_ref->{name},$c_ref->{duration},$c_ref->{warning},$c_ref->{critical}));
+                $self->add_perfdata(sprintf("c_%dstate=%d;;;;",$casecount, $case_result));
         }
         if ($params{mode} =~ /my::sahi::suite/) {
-
+		if ($params{warningrange} && $params{criticalrange}) {
+			$self->add_nagios(
+				$self->check_thresholds($runtime, $params{warningrange}, $params{criticalrange}),
+				sprintf ("Suite %s ran in %0.2f seconds",$params{name}, $runtime)
+			);
+			$self->add_perfdata(sprintf("suite_runtime_%s=%0.2fs;%d;%d;;",$params{name},$runtime,$params{warningrange}, $params{criticalrange}));	
+		}
         }
 
 }
@@ -106,7 +120,7 @@ sub nagios {
 sub get_suite {
 	my %params = @_; 
 	my @suite = $params{handle}->fetchrow_array(q{
-		SELECT ss.id,ss.name,ss.warning,ss.critical
+		SELECT ss.id,ss.name
 		FROM sahi_suites ss, sahi_jobs sj
 		WHERE (ss.name = ?) and (ss.guid = sj.guid)
 		ORDER BY ss.id DESC LIMIT 1
@@ -116,7 +130,7 @@ sub get_suite {
 		exit 3;                        
 	}
 	my %suitehash;
-	@suitehash{qw(id name warning critical)} = @suite;
+	@suitehash{qw(id name)} = @suite;
 	return \%suitehash;
 }
 

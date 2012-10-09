@@ -51,7 +51,6 @@ sub init {
         $self->{'dbnow'} = $params{handle}->fetchrow_array(q{
                 SELECT UNIX_TIMESTAMP() FROM dual
         });
-        $self->valdiff(\%params, 'dbnow');
 
         if ($params{mode} =~ /my::sahi::suite/) {
 		$self->{suite} = get_suite(%params);
@@ -102,6 +101,11 @@ sub nagios {
                 $self->add_perfdata(sprintf("c_%dstate=%d;;;;",$casecount, $case_result));
         }
         if ($params{mode} =~ /my::sahi::suite/) {
+		if (($self->{dbnow}) - ($self->{suite}{time}) > $params{name2}) {
+			printf("%s Sahi Suite '%s' did not run for more than %d seconds!\n", $STATELABELS{3}, $params{name}, $params{name2});
+			exit 3;
+		}
+
 		if ($params{warningrange} && $params{criticalrange}) {
 			$self->add_nagios(
 				$self->check_thresholds($runtime, $params{warningrange}, $params{criticalrange}),
@@ -120,7 +124,7 @@ sub nagios {
 sub get_suite {
 	my %params = @_; 
 	my @suite = $params{handle}->fetchrow_array(q{
-		SELECT ss.id,ss.name
+		SELECT ss.id,ss.name,UNIX_TIMESTAMP(ss.time)
 		FROM sahi_suites ss, sahi_jobs sj
 		WHERE (ss.name = ?) and (ss.guid = sj.guid)
 		ORDER BY ss.id DESC LIMIT 1
@@ -130,7 +134,7 @@ sub get_suite {
 		exit 3;                        
 	}
 	my %suitehash;
-	@suitehash{qw(id name)} = @suite;
+	@suitehash{qw(id name time)} = @suite;
 	return \%suitehash;
 }
 

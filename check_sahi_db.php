@@ -13,13 +13,13 @@ $col_suite_runtime_area = '#ffff66';
 $col_case_line = array('#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
 $col_case_area = array('#5692dc','#154be0','#5692DC','#1d91c0','#8ED4DC','#b6e2d8','#d7f0c7','#f3fac7');
 $col_case_shift = "0";
-$col_case_area_opacity = "FF";
+$col_case_area_opacity = "DD";
 
 # Step colors
 $col_step_line = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
 $col_step_area = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
 $col_step_shift = "0";
-$col_step_area_opacity = "FF";
+$col_step_area_opacity = "DD";
 
 # State colors
 $col_OK = "#008500";
@@ -96,7 +96,6 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$def[0] .= rrd::comment("\:\\n");
 
 		$def[0] .= rrd::def("suite", end($RRDFILE), end($DS), "AVERAGE");
-		#$def[0] .= rrd::cdef("suite_diff", "suite,c_line_stackbase".$c_last_index.",UN,0,c_line_stackbase".$c_last_index.",IF,-");
 		$def[0] .= rrd::cdef("suite_diff", "suite,c_line_stackbase".$c_last_index.",UN,0,c_line_stackbase".$c_last_index.",IF,-");
 		# invisible line to stack upon
 		$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
@@ -128,25 +127,6 @@ foreach ($this->DS as $KEY=>$VAL) {
 		$opt[$casecount] = "--vertical-label \"seconds\"  -l 0 -M --slope-mode --title \"$servicedesc (Sahi case $casecount) on $hostname\" ";
 		$def[$casecount] = "";
 
-		$def[$casecount] .= rrd::comment("Case ".$casecount ."\g");
-		if(($VAL["WARN"] != "") && ($VAL["CRIT"] != "")) {
-			$def[$casecount] .= rrd::comment(" (\g");
-			$def[$casecount] .= rrd::hrule($VAL["WARN"], "#FFFF00", "Warning  ".$VAL["WARN"].$UNIT[$casecount]);
-			$def[$casecount] .= rrd::hrule($VAL["CRIT"], "#FF0000", "Critical  ".$VAL["CRIT"].$UNIT[$casecount]."\g");
-			$def[$casecount] .= rrd::comment(")\g");
-		}
-
-		$def[$casecount] .= rrd::comment("\:\\n");
-
-	        $def[$casecount] .= rrd::def("case$casecount", $VAL['RRDFILE'], $VAL['DS'], "AVERAGE");
-	        $def[$casecount] .= rrd::area   ("case$casecount", $col_case_area[$casecount].$col_case_area_opacity, $casename );
-	        #$def[$casecount] .= rrd::area   ("case$casecount", rrd::color($casecount+$col_case_shift,$col_case_area_opacity), $casename );
-	        $def[$casecount] .= rrd::line1   ("case$casecount", $col_case_line[$casecount] );
-	        #$def[$casecount] .= rrd::line1   ("case$casecount", rrd::color($casecount+$col_case_shift));
-		$def[$casecount] .= rrd::gprint ("case$casecount", "LAST", "%3.2lf $UNIT[$casecount] LAST");
-		$def[$casecount] .= rrd::gprint ("case$casecount", "MAX", "%3.2lf $UNIT[$casecount] MAX");
-		$def[$casecount] .= rrd::gprint ("case$casecount", "AVERAGE", "%3.2lf $UNIT[$casecount] AVERAGE \j");
-		$def[$casecount] .= rrd::comment(" \\n");
 
 		# AREA
 		foreach ($this->DS as $k=>$v) {
@@ -179,6 +159,7 @@ foreach ($this->DS as $KEY=>$VAL) {
 		$def[$casecount] .= rrd::line1("case".$casecount."_maxplus", $col_invisible);
 
 		# LINE & TICK
+		$s_last_index = "";
 		foreach ($this->DS as $k=>$v) {
 			if (preg_match('/^s_'.$casecount.'_(\d?)_(.*)/', $v['LABEL'], $s_matches)) {
 				$stepcount = $s_matches[1];
@@ -196,11 +177,42 @@ foreach ($this->DS as $KEY=>$VAL) {
 					# add value to s_line_stackbase
 					$def[$casecount] .= rrd::cdef("s_line_stackbase$stepcount", "s_line_stackbase".($stepcount-1).",s_line$stepcount,+");
 				}
+				$s_last_index = $stepcount;
 			} elseif(preg_match('/^c_'.$casecount.'state/', $v['LABEL'], $state_matches)) {
 				$def[$casecount] .= rrd::def("case".$casecount."_state", $v['RRDFILE'], $v['DS'], "AVERAGE") ;
 				$def[$casecount] .= rrd::ticker("case".$casecount."_state", 1, 2,$ticker_frac,$ticker_opacity,$col_OK,$col_WARN,$col_CRIT) ;
 			}
 		}
+
+		$def[$casecount] .= rrd::comment(" \\n");
+		$def[$casecount] .= rrd::comment("Case ".$casecount ."\g");
+		if(($VAL["WARN"] != "") && ($VAL["CRIT"] != "")) {
+			$def[$casecount] .= rrd::comment(" (\g");
+			$def[$casecount] .= rrd::hrule($VAL["WARN"], "#FFFF00", "Warning  ".$VAL["WARN"].$UNIT[$casecount]);
+			$def[$casecount] .= rrd::hrule($VAL["CRIT"], "#FF0000", "Critical  ".$VAL["CRIT"].$UNIT[$casecount]."\g");
+			$def[$casecount] .= rrd::comment(")\g");
+		}
+
+		$def[$casecount] .= rrd::comment("\:\\n");
+
+	        $def[$casecount] .= rrd::def("case$casecount", $VAL['RRDFILE'], $VAL['DS'], "AVERAGE");
+		if ($s_last_index != "") {
+			$def[$casecount] .= rrd::cdef("case_diff$casecount","case$casecount,s_line_stackbase$s_last_index,-");
+			# invisible line to stack upon
+			$def[$casecount] .= rrd::line1("s_line_stackbase$s_last_index","#00000000");	
+			$def[$casecount] .= rrd::area   ("case_diff$casecount", $col_case_area[$casecount].$col_case_area_opacity, $casename,1 );
+			# invisible line to stack upon
+			$def[$casecount] .= rrd::line1("s_line_stackbase$s_last_index","#00000000");	
+			$def[$casecount] .= rrd::line1   ("case_diff$casecount", $col_case_line[$casecount],"",1);
+		} else {
+			# no steps, no stacks
+			$def[$casecount] .= rrd::area   ("case$casecount", $col_case_area[$casecount].$col_case_area_opacity, $casename );
+			$def[$casecount] .= rrd::line1   ("case$casecount", $col_case_line[$casecount],"");
+		}
+
+		$def[$casecount] .= rrd::gprint ("case$casecount", "LAST", "%3.2lf $UNIT[$casecount] LAST");
+		$def[$casecount] .= rrd::gprint ("case$casecount", "MAX", "%3.2lf $UNIT[$casecount] MAX");
+		$def[$casecount] .= rrd::gprint ("case$casecount", "AVERAGE", "%3.2lf $UNIT[$casecount] AVERAGE \j");
 
 
 	}

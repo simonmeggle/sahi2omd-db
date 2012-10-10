@@ -13,13 +13,13 @@ $col_suite_runtime_area = '#ffff66';
 $col_case_line = array('#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
 $col_case_area = array('#5692dc','#154be0','#5692DC','#1d91c0','#8ED4DC','#b6e2d8','#d7f0c7','#f3fac7');
 $col_case_shift = "0";
-$col_case_area_opacity = "DD";
+$col_case_area_opacity = "BB";
 
 # Step colors
 $col_step_line = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
 $col_step_area = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
 $col_step_shift = "0";
-$col_step_area_opacity = "DD";
+$col_step_area_opacity = "CC";
 
 # State colors
 $col_OK = "#008500";
@@ -66,6 +66,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 				$def[0] .= rrd::gprint("c_area$casecount", "LAST", "%3.2lf $UNIT[$casecount] LAST");
 				$def[0] .= rrd::gprint("c_area$casecount", "MAX", "%3.2lf $UNIT[$casecount] MAX ");
 				$def[0] .= rrd::gprint("c_area$casecount", "AVERAGE", "%3.2lf $UNIT[$casecount] AVERAGE \j");
+
 			}
 		}
 		# LINE
@@ -85,9 +86,12 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 					# add value to stackbase
 					$def[0] .= rrd::cdef("c_line_stackbase$casecount", "c_line_stackbase".($casecount-1).",c_line$casecount,+");
 				}
+				# is this a unknown value? 
+				$def[0] .= rrd::cdef("c_".$casecount."_unknown", "c_line$casecount,UN,1,0,IF");
 				$c_last_index = $casecount;
 			}
 		}	
+
 
 		$def[0] .= rrd::comment(" \\n");
 		$def[0] .= rrd::comment("Sahi Suite\g");
@@ -140,7 +144,13 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$def[0] .= "TICK:suite_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
 #		$def[0] .= "TICK:suite_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
 #		$def[0] .= "TICK:suite_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
-		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+#		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+
+		for ($i=1; $i<=$c_last_index; $i++) {
+			$def[0] .= "TICK:c_".$i."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+		}
+
+
 }  
 
 foreach ($this->DS as $KEY=>$VAL) {
@@ -220,6 +230,8 @@ foreach ($this->DS as $KEY=>$VAL) {
 		$def[$casecount] .= rrd::comment("\:\\n");
 
 	        $def[$casecount] .= rrd::def("case$casecount", $VAL['RRDFILE'], $VAL['DS'], "AVERAGE");
+		# is this a unknown value? 
+		$def[$casecount] .= rrd::cdef("case".$casecount."_unknown", "case$casecount,UN,1,0,IF");
 		if ($s_last_index != "") {
 			$def[$casecount] .= rrd::cdef("case_diff$casecount","case$casecount,s_line_stackbase$s_last_index,-");
 			# invisible line to stack upon
@@ -254,9 +266,10 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$def[$casecount] .= "TICK:case".$casecount."_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
-				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+#				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
 			}
 		}
+		$def[$casecount] .= "TICK:case".$casecount."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
 
 	}
 

@@ -29,6 +29,13 @@ my %STATELABELS = (
         3       => "[UNKN]",
 );
 
+my %STATESHORT = (
+        0       => "o",
+        1       => "w",
+        2       => "c",
+        3       => "u",
+);
+
 my %ERRORS=( OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 );
 
 my %SQL_CASES = (
@@ -78,7 +85,7 @@ sub nagios {
                 $runtime += $c_ref->{duration};
 
 		# 0. Stale result?
-		my $case_stale = (($self->{dbnow}) - ($c_ref->{time}) > $params{name2});
+		my $case_stale = (($self->{dbnow}) - ($c_ref->{time}) > $params{name2}) || 0;
 		if ($case_stale) {
 			$case_result = 3;
 			$case_output = sprintf("Sahi Case '%s' did not run for more than %d seconds!", $c_ref->{name}, $params{name2});
@@ -89,7 +96,7 @@ sub nagios {
                 } 
 		# 2.1 Case duration
 		$case_db_result = case_duration_result($c_ref->{duration},$c_ref->{warning},$c_ref->{critical});
-		if (! $case_stale) { 
+		if (! ($case_stale || ($c_ref->{result} == 4) )) { 
 			$case_result = $ERRDB2NAG{$case_db_result};
 			$case_output = sprintf($ERRDB{$case_db_result},
 				"case",$c_ref->{name},$c_ref->{duration},($case_db_result == 2 ? $c_ref->{warning} : $c_ref->{critical}));
@@ -102,22 +109,23 @@ sub nagios {
 				$case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
 				$case_result = $ERRDB2NAG{worststate($case_db_result,1)};
 			}
-			$self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
+			if ($case_stale) {
+				$self->add_perfdata(sprintf("s_%d_%d_%s=%s;;;;",$casecount,$stepcount,$s_ref->{name}, "U"));
+			} else {
+				$self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
+			}
 		}
                 # final case result
                 $self->add_nagios($case_result, sprintf("%s %s", $STATELABELS{$case_result}, $case_output));
-                $self->add_perfdata(sprintf("c_%d_%s=%0.2fs;%d;%d;;",$casecount,$c_ref->{name},$c_ref->{duration},$c_ref->{warning},$c_ref->{critical}));
-                $self->add_perfdata(sprintf("c_%dstate=%d;;;;",$casecount, $case_result));
+		if ($case_stale) {
+	                $self->add_perfdata(sprintf("c_%d_%s=%ss;;;;",$casecount,$c_ref->{name},"U"));
+
+		} else {
+	                $self->add_perfdata(sprintf("c_%d_%s=%0.2fs;%d;%d;;",$casecount,$c_ref->{name},$c_ref->{duration},$c_ref->{warning},$c_ref->{critical}));
+		}
+	        $self->add_perfdata(sprintf("c_%dstate=%d;;;;",$casecount, $case_result));
         }
         if ($params{mode} =~ /my::sahi::suite/) {
-		if (($self->{dbnow}) - ($self->{suite}{time}) > $params{name2}) {
-			$self->add_nagios(3,sprintf("%s Sahi Suite '%s' did not run for more than %d seconds!", $STATELABELS{3}, $params{name}, $params{name2}));
-		} elsif ($params{warningrange} && $params{criticalrange}) {
-			$self->add_nagios(
-				$self->check_thresholds($runtime, $params{warningrange}, $params{criticalrange}),
-				sprintf ("Suite %s ran in %0.2f seconds",$params{name}, $runtime)
-			);
-		}
 		my $worst_suite;
 		foreach my $level ("OK", "UNKNOWN", "WARNING", "CRITICAL") {
 			if (scalar(@{$self->{nagios}->{messages}->{$ERRORS{$level}}})) {
@@ -126,7 +134,17 @@ sub nagios {
 		}	
 		$self->add_perfdata(sprintf("suite_state=%d;;;;",$worst_suite));	
 
-		$self->add_perfdata(sprintf("suite_runtime_%s=%0.2fs;%d;%d;;",$params{name},$runtime,$params{warningrange}, $params{criticalrange}));
+		if (($self->{dbnow}) - ($self->{suite}{time}) > $params{name2}) {
+			$self->add_nagios(3,sprintf("%s Sahi Suite '%s' did not run for more than %d seconds!", $STATELABELS{3}, $params{name}, $params{name2}));
+			$self->add_perfdata(sprintf("suite_runtime_%s=%s;;;;",$params{name},"U"));
+		} elsif ($params{warningrange} && $params{criticalrange}) {
+			my $st = $self->check_thresholds($runtime, $params{warningrange}, $params{criticalrange});
+			$self->add_nagios(
+				$st,sprintf ("%s Sahi Suite %s ran in %0.2f seconds",$STATELABELS{$st},$params{name}, $runtime)
+			);
+			$self->add_perfdata(sprintf("suite_runtime_%s=%0.2fs;%d;%d;;",$params{name},$runtime,$params{warningrange}, $params{criticalrange}));
+		}
+
         }
 
 }

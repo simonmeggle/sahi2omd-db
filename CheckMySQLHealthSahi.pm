@@ -29,13 +29,15 @@ my %STATELABELS = (
         3       => "[UNKN]",
 );
 
+my %ERRORS=( OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 );
+
 my %SQL_CASES = (
-	"my::sahi::suite"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,time,msg
+	"my::sahi::suite"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg
 					FROM sahi_cases sc, sahi_jobs sj
 					WHERE (sc.sahi_suites_id = ?) and (sc.guid = sj.guid)
 					ORDER BY sc.id },
 
-	"my::sahi::case"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,time,msg
+	"my::sahi::case"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg
 					FROM sahi_cases sc, sahi_jobs sj
 					WHERE (sc.name = ?) and (sc.guid = sj.guid)
 					ORDER BY sc.id DESC LIMIT 1}
@@ -74,27 +76,34 @@ sub nagios {
 		$casecount++;
 
                 $runtime += $c_ref->{duration};
+
+		# 0. Stale result?
+		my $case_stale = (($self->{dbnow}) - ($c_ref->{time}) > $params{name2});
+		if ($case_stale) {
+			$case_result = 3;
+			$case_output = sprintf("Sahi Case '%s' did not run for more than %d seconds!", $c_ref->{name}, $params{name2});
+		} elsif ($c_ref->{result} == 4) {
                 # 1. Fatal exception
-                if ($c_ref->{result} == 4) {
                         $case_result = $ERRDB2NAG{4};
                         $case_output = sprintf($ERRDB{4}, "case", $c_ref->{name}, $c_ref->{msg});
-                } else {
-                # 2.1 Case duration
-                        $case_db_result = case_duration_result($c_ref->{duration},$c_ref->{warning},$c_ref->{critical});
-                        $case_result = $ERRDB2NAG{$case_db_result};
-                        $case_output = sprintf($ERRDB{$case_db_result},
-                                "case",$c_ref->{name},$c_ref->{duration},($case_db_result == 2 ? $c_ref->{warning} : $c_ref->{critical}));
-                }
-                # 2.2 Step duration
+                } 
+		# 2.1 Case duration
+		$case_db_result = case_duration_result($c_ref->{duration},$c_ref->{warning},$c_ref->{critical});
+		if (! $case_stale) { 
+			$case_result = $ERRDB2NAG{$case_db_result};
+			$case_output = sprintf($ERRDB{$case_db_result},
+				"case",$c_ref->{name},$c_ref->{duration},($case_db_result == 2 ? $c_ref->{warning} : $c_ref->{critical}));
+		}
+		# 2.2 Step duration
 		my $stepcount = 0;
-                foreach my $s_ref (@{$self->{steps}->{$c_ref->{id}}}) {
+		foreach my $s_ref (@{$self->{steps}->{$c_ref->{id}}}) {
 			$stepcount++;
-                        if (step_duration_result($s_ref->{duration}, $s_ref->{warning})) {
-                                $case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
-                                $case_result = $ERRDB2NAG{worststate($case_db_result,1)};
-                        }
-                        $self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
-                }
+			if (step_duration_result($s_ref->{duration}, $s_ref->{warning}) and not $case_stale) {
+				$case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
+				$case_result = $ERRDB2NAG{worststate($case_db_result,1)};
+			}
+			$self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
+		}
                 # final case result
                 $self->add_nagios($case_result, sprintf("%s %s", $STATELABELS{$case_result}, $case_output));
                 $self->add_perfdata(sprintf("c_%d_%s=%0.2fs;%d;%d;;",$casecount,$c_ref->{name},$c_ref->{duration},$c_ref->{warning},$c_ref->{critical}));
@@ -102,17 +111,22 @@ sub nagios {
         }
         if ($params{mode} =~ /my::sahi::suite/) {
 		if (($self->{dbnow}) - ($self->{suite}{time}) > $params{name2}) {
-			printf("%s Sahi Suite '%s' did not run for more than %d seconds!\n", $STATELABELS{3}, $params{name}, $params{name2});
-			exit 3;
-		}
-
-		if ($params{warningrange} && $params{criticalrange}) {
+			$self->add_nagios(3,sprintf("%s Sahi Suite '%s' did not run for more than %d seconds!", $STATELABELS{3}, $params{name}, $params{name2}));
+		} elsif ($params{warningrange} && $params{criticalrange}) {
 			$self->add_nagios(
 				$self->check_thresholds($runtime, $params{warningrange}, $params{criticalrange}),
 				sprintf ("Suite %s ran in %0.2f seconds",$params{name}, $runtime)
 			);
-			$self->add_perfdata(sprintf("suite_runtime_%s=%0.2fs;%d;%d;;",$params{name},$runtime,$params{warningrange}, $params{criticalrange}));	
 		}
+		my $worst_suite;
+		foreach my $level ("OK", "UNKNOWN", "WARNING", "CRITICAL") {
+			if (scalar(@{$self->{nagios}->{messages}->{$ERRORS{$level}}})) {
+				$worst_suite = $ERRORS{$level};
+			}
+		}	
+		$self->add_perfdata(sprintf("suite_state=%d;;;;",$worst_suite));	
+
+		$self->add_perfdata(sprintf("suite_runtime_%s=%0.2fs;%d;%d;;",$params{name},$runtime,$params{warningrange}, $params{criticalrange}));
         }
 
 }

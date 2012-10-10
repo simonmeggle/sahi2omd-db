@@ -25,12 +25,16 @@ $col_step_area_opacity = "DD";
 $col_OK = "#008500";
 $col_WARN = "#ffcc00";
 $col_CRIT = "#d30000";
+$col_UNKN = "#969696";
 
 # ticker stuff
 $ticker_frac = "-0.04";
 $ticker_opacity = "BB";
 $ticker_dist_factor = "1.05";
 
+# Unknown ticker
+$unkn_tick_frac = "1.0";
+$unkn_tick_opacity = "AA";
 
 sort($this->DS);
 if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
@@ -64,7 +68,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 			}
 		}
 		# LINE
-		$c_last_index = 0;
+		$c_last_index = "";
 		foreach($this->DS as $k=>$v) {
 			if (preg_match('/c_(\d?)_(.*)/', $v["LABEL"], $c_matches)) {
 				$casecount = $c_matches[1];
@@ -96,27 +100,47 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$def[0] .= rrd::comment("\:\\n");
 
 		$def[0] .= rrd::def("suite", end($RRDFILE), end($DS), "AVERAGE");
-		$def[0] .= rrd::cdef("suite_diff", "suite,c_line_stackbase".$c_last_index.",UN,0,c_line_stackbase".$c_last_index.",IF,-");
-		# invisible line to stack upon
-		$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
-	        $def[0] .= rrd::area("suite_diff", $col_suite_runtime_area,"",1 );
-		# invisible line to stack upon
-		$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
-	        $def[0] .= rrd::line1("suite_diff", $col_suite_runtime_line, $suitename,1 );
+		if ($c_last_index != "") {
+			$def[0] .= rrd::cdef("suite_diff", "suite,c_line_stackbase".$c_last_index.",UN,0,c_line_stackbase".$c_last_index.",IF,-");
+			# invisible line to stack upon
+			$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
+			$def[0] .= rrd::area("suite_diff", $col_suite_runtime_area,$suitename,1 );
+			# invisible line to stack upon
+			$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
+			$def[0] .= rrd::line1("suite_diff", $col_suite_runtime_line, "",1 );
+		} else {
+			# no cases, no stacks
+			$def[0] .= rrd::area("suite", $col_suite_runtime_area,$suitename );
+			$def[0] .= rrd::line1("suite", $col_suite_runtime_line, "" );
+		}
 
-		$def[0] .= rrd::gprint("suite_diff", "LAST", "%3.2lf ".end($UNIT)." LAST");
+		$def[0] .= rrd::gprint("suite", "LAST", "%3.2lf ".end($UNIT)." LAST");
 		$def[0] .= rrd::gprint("suite", "MAX", "%3.2lf ".end($UNIT)." MAX");
 		$def[0] .= rrd::gprint("suite", "AVERAGE", "%3.2lf ".end($UNIT)." AVERAGE \j");
+
 
 		# invisible line above maximum (for space between MAX and TICKER)		
 		$def[0] .= rrd::def("suite_max", end($RRDFILE), end($DS), "MAX") ;
 		$def[0] .= rrd::cdef("suite_maxplus", "suite_max,".$ticker_dist_factor.",*");
 		$def[0] .= rrd::line1("suite_maxplus", $col_invisible);
-		
+	
+
 		# TICKER
-		$def[0] .= rrd::cdef("suite_state", $this->MACRO['SERVICESTATE'].",suite,POP") ;
-		$def[0] .= rrd::ticker("suite_state", "1", "2", $ticker_frac,$ticker_opacity,$col_OK,$col_WARN,$col_CRIT) ;
-}
+		$idxm1 = count($this->DS)-1;
+
+		$def[0] .= rrd::def("suite_state", $RRDFILE[$idxm1], $DS[$idxm1], "MAX") ;
+		$def[0] .= rrd::cdef("suite_state_unknown", "suite_state,2,GT,suite_state,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_ok", "suite_state,1,LT,1,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_nok", "suite_state,0,GT,suite_state,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_nok2", "suite_state_nok,3,LT,suite_state_nok,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_crit", "suite_state_nok2,1,GT,suite_state_nok2,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_warn", "suite_state_nok2,2,LT,suite_state_nok2,0,IF") ;
+
+		$def[0] .= "TICK:suite_state_crit".$col_CRIT.$unkn_tick_opacity.":".$ticker_frac.": " ;
+		$def[0] .= "TICK:suite_state_warn".$col_WARN.$unkn_tick_opacity.":".$ticker_frac.": " ;
+		$def[0] .= "TICK:suite_state_ok".$col_OK.$unkn_tick_opacity.":".$ticker_frac.": " ;
+		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
+}  
 
 foreach ($this->DS as $KEY=>$VAL) {
 
@@ -221,7 +245,8 @@ foreach ($this->DS as $KEY=>$VAL) {
 
 
 if ( $DEBUG == 1 ) {
-throw new Kohana_exception(print_r($def,TRUE));
+#throw new Kohana_exception(print_r($def,TRUE));
+throw new Kohana_exception(print_r($idxm1,TRUE));
 }
 ?>
 

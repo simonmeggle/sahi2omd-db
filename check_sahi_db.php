@@ -134,7 +134,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$idxm1 = count($this->DS)-1;
 
 		$def[0] .= rrd::def("suite_state", $RRDFILE[$idxm1], $DS[$idxm1], "MAX") ;
-		$def[0] .= rrd::cdef("suite_state_unknown", "suite_state,3,EQ,suite_state,0,IF") ;
+		$def[0] .= rrd::cdef("suite_state_unknown", "suite_state,2,GT,suite_state,0,IF") ;
 #		$def[0] .= rrd::cdef("suite_state_ok", "suite_state,1,LT,1,0,IF") ;
 		$def[0] .= rrd::cdef("suite_state_nok", "suite_state,0,GT,suite_state,0,IF") ;
 		$def[0] .= rrd::cdef("suite_state_nok2", "suite_state_nok,3,LT,suite_state_nok,0,IF") ;
@@ -144,10 +144,10 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$def[0] .= "TICK:suite_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
 #		$def[0] .= "TICK:suite_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
 #		$def[0] .= "TICK:suite_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
-#		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
 
 		for ($i=1; $i<=$c_last_index; $i++) {
-			$def[0] .= "TICK:c_".$i."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+			$def[0] .= "TICK:c_".$i."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
 		}
 
 
@@ -256,7 +256,7 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$def[$casecount] .= rrd::def("case".$casecount."_state", $v['RRDFILE'], $v['DS'], "MAX") ;
 
 #					$def[$casecount] .= rrd::line1("case".$casecount."_state","#000033");	
-				$def[$casecount] .= rrd::cdef("case".$casecount."_state_unknown", "case".$casecount."_state,3,EQ,case".$casecount."_state,0,IF") ;
+				$def[$casecount] .= rrd::cdef("case".$casecount."_state_unknown", "case".$casecount."_state,2,GT,case".$casecount."_state,0,IF") ;
 #				$def[$casecount] .= rrd::cdef("case".$casecount."_state_ok", "case".$casecount."_state,0.5,LT,1,0,IF") ;
 				$def[$casecount] .= rrd::cdef("case".$casecount."_state_nok", "case".$casecount."_state,0,GT,case".$casecount."_state,0,IF") ;
 				$def[$casecount] .= rrd::cdef("case".$casecount."_state_nok2", "case".$casecount."_state_nok,3,LT,case".$casecount."_state_nok,0,IF") ;
@@ -266,7 +266,7 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$def[$casecount] .= "TICK:case".$casecount."_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
-#				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
 			}
 		}
 		$def[$casecount] .= "TICK:case".$casecount."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;

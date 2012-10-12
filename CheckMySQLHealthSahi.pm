@@ -5,6 +5,8 @@ our @ISA = qw(DBD::MySQL::Server);
 
 use Data::Dumper;
 use YAML;
+use MIME::Base64;
+use Encode qw(encode); 
 
 my %ERRDB = (
         0       => "%s '%s' (%0.2fs) ok",       
@@ -38,13 +40,14 @@ my %STATESHORT = (
 
 my %ERRORS=( OK => 0, WARNING => 1, CRITICAL => 2, UNKNOWN => 3 );
 
+# Queries for sub get_cases, depending on working mode
 my %SQL_CASES = (
-	"my::sahi::suite"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg
+	"my::sahi::suite"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg,screenshot
 					FROM sahi_cases sc, sahi_jobs sj
 					WHERE (sc.sahi_suites_id = ?) and (sc.guid = sj.guid)
 					ORDER BY sc.id },
 
-	"my::sahi::case"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg
+	"my::sahi::case"	=>	q{SELECT sc.id,result,name,start,stop,warning,critical,sahi_suites_id,duration,UNIX_TIMESTAMP(time),msg,screenshot
 					FROM sahi_cases sc, sahi_jobs sj
 					WHERE (sc.name = ?) and (sc.guid = sj.guid)
 					ORDER BY sc.id DESC LIMIT 1}
@@ -93,6 +96,11 @@ sub nagios {
                 # 1. Fatal exception
                         $case_result = $ERRDB2NAG{4};
                         $case_output = sprintf($ERRDB{4}, "case", $c_ref->{name}, $c_ref->{msg});
+			if (defined($c_ref->{screenshot})) {
+				my $imgb64 = encode_base64($c_ref->{screenshot},"");
+				$case_output .= "<div id=\"case$casecount\"><img src=\"data:image/jpg;base64,$imgb64\"></div>";
+			}
+		
                 } 
 		# 2.1 Case duration
 		$case_db_result = case_duration_result($c_ref->{duration},$c_ref->{warning},$c_ref->{critical});
@@ -185,7 +193,7 @@ sub get_cases {
 	}
 	foreach my $c_ref (@cases) {
 		my %caseshash;
-		@caseshash{qw(id result name start stop warning critical sahi_suites_id duration time msg)} = @$c_ref;
+		@caseshash{qw(id result name start stop warning critical sahi_suites_id duration time msg screenshot)} = @$c_ref;
 		push @{$ret_cases}, \%caseshash;
 
 		# Steps --------------------------------------------

@@ -266,7 +266,7 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$def[$casecount] .= "TICK:case".$casecount."_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
 #				$def[$casecount] .= "TICK:case".$casecount."_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
-				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
 			}
 		}
 		$def[$casecount] .= "TICK:case".$casecount."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;

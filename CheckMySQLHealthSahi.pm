@@ -98,7 +98,7 @@ sub nagios {
                         $case_output = sprintf($ERRDB{4}, "case", $c_ref->{name}, $c_ref->{msg});
 			if (defined($c_ref->{screenshot})) {
 				my $imgb64 = encode_base64($c_ref->{screenshot},"");
-				$case_output .= "<div id=\"case$casecount\"><img src=\"data:image/jpg;base64,$imgb64\"></div>";
+				$case_output .= "<div style=\"width:640px\" id=\"case$casecount\"><img style=\"width:98%;border:2px solid gray;display: block;margin-left:auto;margin-right:auto;margin-bottom:4px\" src=\"data:image/jpg;base64,$imgb64\"></div>";
 			}
 		
                 } 
@@ -113,7 +113,7 @@ sub nagios {
 		my $stepcount = 0;
 		foreach my $s_ref (@{$self->{steps}->{$c_ref->{id}}}) {
 			$stepcount++;
-			if (step_duration_result($s_ref->{duration}, $s_ref->{warning}) and not $case_stale) {
+			if (step_duration_result($s_ref->{duration}, $s_ref->{warning}) and not $case_stale and not ($c_ref->{result} == 4)) {
 				$case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
 				$case_result = $ERRDB2NAG{worststate($case_db_result,1)};
 			}

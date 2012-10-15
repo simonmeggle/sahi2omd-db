@@ -21,7 +21,7 @@ my %ERRDB2NAG = (
         1       => 1,
         2       => 1,
         3       => 2,
-        4       => 2,
+        4       => 3,
 );
 
 my %STATELABELS = (
@@ -89,22 +89,24 @@ sub nagios {
 
 		# 0. Stale result?
 		my $case_stale = (($self->{dbnow}) - ($c_ref->{time}) > $params{name2}) || 0;
+		my $case_exception = ($c_ref->{result} == 4);
 		if ($case_stale) {
 			$case_result = 3;
 			$case_output = sprintf("Sahi Case '%s' did not run for more than %d seconds!", $c_ref->{name}, $params{name2});
-		} elsif ($c_ref->{result} == 4) {
+		} elsif ($case_exception) {
                 # 1. Fatal exception
                         $case_result = $ERRDB2NAG{4};
                         $case_output = sprintf($ERRDB{4}, "case", $c_ref->{name}, $c_ref->{msg});
 			if (defined($c_ref->{screenshot})) {
 				my $imgb64 = encode_base64($c_ref->{screenshot},"");
 				$case_output .= "<div style=\"width:640px\" id=\"case$casecount\"><img style=\"width:98%;border:2px solid gray;display: block;margin-left:auto;margin-right:auto;margin-bottom:4px\" src=\"data:image/jpg;base64,$imgb64\"></div>";
+				#$case_output .= "<img style=\"width:30%;height:30%;border:2px solid gray\" rel=\"lightbox\" src=\"data:image/jpg;base64,$imgb64\">";
 			}
 		
                 } 
 		# 2.1 Case duration
 		$case_db_result = case_duration_result($c_ref->{duration},$c_ref->{warning},$c_ref->{critical});
-		if (! ($case_stale || ($c_ref->{result} == 4) )) { 
+		if (! ($case_stale || $case_exception )) { 
 			$case_result = $ERRDB2NAG{$case_db_result};
 			$case_output = sprintf($ERRDB{$case_db_result},
 				"case",$c_ref->{name},$c_ref->{duration},($case_db_result == 2 ? $c_ref->{warning} : $c_ref->{critical}));
@@ -113,11 +115,11 @@ sub nagios {
 		my $stepcount = 0;
 		foreach my $s_ref (@{$self->{steps}->{$c_ref->{id}}}) {
 			$stepcount++;
-			if (step_duration_result($s_ref->{duration}, $s_ref->{warning}) and not $case_stale and not ($c_ref->{result} == 4)) {
+			if (step_duration_result($s_ref->{duration}, $s_ref->{warning}) and not $case_stale and not ($case_exception)) {
 				$case_output .= sprintf($ERRDB{1}, $s_ref->{name},$s_ref->{duration},$s_ref->{warning});
 				$case_result = $ERRDB2NAG{worststate($case_db_result,1)};
 			}
-			if ($case_stale) {
+			if ($case_stale or $case_exception) {
 				$self->add_perfdata(sprintf("s_%d_%d_%s=%s;;;;",$casecount,$stepcount,$s_ref->{name}, "U"));
 			} else {
 				$self->add_perfdata(sprintf("s_%d_%d_%s=%0.2fs;%d;;;",$casecount,$stepcount,$s_ref->{name}, $s_ref->{duration}, $s_ref->{warning}));
@@ -125,7 +127,7 @@ sub nagios {
 		}
                 # final case result
                 $self->add_nagios($case_result, sprintf("%s %s", $STATELABELS{$case_result}, $case_output));
-		if ($case_stale) {
+		if ($case_stale or $case_exception) {
 	                $self->add_perfdata(sprintf("c_%d_%s=%ss;;;;",$casecount,$c_ref->{name},"U"));
 
 		} else {

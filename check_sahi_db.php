@@ -8,17 +8,13 @@ $col_suite_runtime_line = '#FFFF00';
 $col_suite_runtime_area = '#ffff66';
 
 # Case colors
-#$col_case_line = array('#00005e','#14145e','#28285e','#3c3c5e','#50505e','#64645e','#78785e','#8c8c5e','#a0a05e');
-#$col_case_area = array('#0000b3','#1414b3','#2828b3','#3c3cb3','#5050b3','#6464b3','#7878b3','#8c8cb3','#a0a0b3');
-$col_case_line = array('#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
-$col_case_area = array('#5692dc','#154be0','#5692DC','#1d91c0','#8ED4DC','#b6e2d8','#d7f0c7','#f3fac7');
-$col_case_shift = "0";
+$col_case_line = array('','#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
+$col_case_area = array('','#5692dc','#154be0','#5692DC','#1d91c0','#8ED4DC','#b6e2d8','#d7f0c7','#f3fac7');
 $col_case_area_opacity = "BB";
 
 # Step colors
 $col_step_line = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
 $col_step_area = array('#01c510a','#bf812d','#dfc27d','#c7eae5','#80cdc1','#35978f','#01665e');
-$col_step_shift = "0";
 $col_step_area_opacity = "CC";
 
 # State colors
@@ -55,7 +51,6 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 					$def[0] .= rrd::comment("Sahi Cases\: \\n");
 					$def[0] .= rrd::cdef("c_area_stackbase$casecount", "c_area$casecount,1,*");
 					$def[0] .= rrd::area("c_area$casecount", $col_case_area[$casecount].$col_case_area_opacity, $casename, 0);
-					#$def[0] .= rrd::area("c_area$casecount", rrd::color($casecount+$col_case_shift,$col_case_area_opacity), $casename, 0);
 				} else {
 					# invisible line to stack upon
 					$def[0] .= rrd::line1("c_area_stackbase".($casecount-1),"#00000000");
@@ -173,12 +168,10 @@ foreach ($this->DS as $KEY=>$VAL) {
 					$def[$casecount] .= rrd::comment("Steps\: \\n");
 					$def[$casecount] .= rrd::cdef("s_area_stackbase$stepcount", "s_area$stepcount,1,*");
 	        			$def[$casecount] .= rrd::area("s_area$stepcount", $col_step_area[$stepcount].$col_step_area_opacity,$stepname, 0 );
-	        			#$def[$casecount] .= rrd::area("s_area$stepcount", rrd::color($stepcount+$col_step_shift,$col_step_area_opacity),$stepname, 0 );
 				} else {
 					# invisible line to stack upon
 					$def[$casecount] .= rrd::line1("s_area_stackbase".($stepcount-1),"#00000000");	
 					$def[$casecount] .= rrd::area("s_area$stepcount", $col_step_area[$stepcount].$col_step_area_opacity,$stepname, 1 );
-					#$def[$casecount] .= rrd::area("s_area$stepcount", rrd::color($stepcount+$col_step_shift,$col_step_area_opacity),$stepname, 1 );
 					# add value to s_area_stackbase
 					$def[$casecount] .= rrd::cdef("s_area_stackbase$stepcount", "s_area_stackbase".($stepcount-1).",s_area$stepcount,+");
 				}
@@ -203,21 +196,16 @@ foreach ($this->DS as $KEY=>$VAL) {
 				if ($stepcount == "1"){
 					$def[$casecount] .= rrd::cdef("s_line_stackbase$stepcount", "s_line$stepcount,1,*");
 					$def[$casecount] .= rrd::line1("s_line$stepcount", $col_step_line[$stepcount], "", 0 );
-					#$def[$casecount] .= rrd::line1("s_line$stepcount", rrd::color($stepcount+$col_step_shift), "", 0 );
 				} else {
 					# invisible line to stack upon
 					$def[$casecount] .= rrd::line1("s_line_stackbase".($stepcount-1),"#00000000");	
 					$def[$casecount] .= rrd::line1("s_line$stepcount", $col_step_line[$stepcount], "", 1 );
-					#$def[$casecount] .= rrd::line1("s_line$stepcount", rrd::color($stepcount+$col_step_shift), "", 1 );
 					# add value to s_line_stackbase
 					$def[$casecount] .= rrd::cdef("s_line_stackbase$stepcount", "s_line_stackbase".($stepcount-1).",s_line$stepcount,+");
 				}
 				$s_last_index = $stepcount;
 			}
 		}
-
-
-
 		$def[$casecount] .= rrd::comment(" \\n");
 		$def[$casecount] .= rrd::comment("Case ".$casecount ."\g");
 		if(($VAL["WARN"] != "") && ($VAL["CRIT"] != "")) {
@@ -228,7 +216,6 @@ foreach ($this->DS as $KEY=>$VAL) {
 		}
 
 		$def[$casecount] .= rrd::comment("\:\\n");
-
 	        $def[$casecount] .= rrd::def("case$casecount", $VAL['RRDFILE'], $VAL['DS'], "AVERAGE");
 		# is this a unknown value? 
 		$def[$casecount] .= rrd::cdef("case".$casecount."_unknown", "case$casecount,UN,1,0,IF");

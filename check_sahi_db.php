@@ -4,8 +4,8 @@ isset($_GET['debug']) ? $DEBUG = $_GET['debug'] : $DEBUG = 0;
 
 $col_invisible = '#00000000';
 
-$col_suite_runtime_line = '#FFFF00';
-$col_suite_runtime_area = '#ffff66';
+$col_suite_runtime_line = '#CE0071';
+$col_suite_runtime_area = '#E73A98';
 
 # Case colors
 $col_case_line = array('','#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
@@ -21,7 +21,7 @@ $col_step_area_opacity = "CC";
 $col_OK = "#008500";
 $col_WARN = "#ffcc00";
 $col_CRIT = "#d30000";
-$col_UNKN = "#bdbdbd";
+$col_UNKN = "#d6d6d6";
 $col_NOK = "#ff8000";
 
 # ticker stuff

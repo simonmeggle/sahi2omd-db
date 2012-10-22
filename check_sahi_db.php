@@ -34,14 +34,14 @@ $unkn_tick_frac = "1.0";
 $unkn_tick_opacity = "FF";
 
 sort($this->DS);
+
+# SUITE Graph  #############################################################
 if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$suitename = preg_replace('/^suite_runtime_(.*)$/', '$1', end($NAME));
 		$ds_name[0] = "Sahi Suite '" . $suitename . "'";
 		$opt[0] = "--vertical-label \"seconds\"  -l 0 --slope-mode --title \"$servicedesc (Sahi Suite $suitename) on $hostname\" ";
 		$def[0] = "";
-
-	
-		# AREA
+		# AREA  ---------------------------------------------------------------------
 		foreach($this->DS as $k=>$v) {
 			if (preg_match('/c_(\d?)_(.*)/', $v["LABEL"], $c_matches)) {
 				$casecount = $c_matches[1];
@@ -64,7 +64,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 
 			}
 		}
-		# LINE
+		# LINE ---------------------------------------------------------------------
 		$c_last_index = "";
 		foreach($this->DS as $k=>$v) {
 			if (preg_match('/c_(\d?)_(.*)/', $v["LABEL"], $c_matches)) {
@@ -86,8 +86,6 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 				$c_last_index = $casecount;
 			}
 		}	
-
-
 		$def[0] .= rrd::comment(" \\n");
 		$def[0] .= rrd::comment("Sahi Suite\g");
 		if((end($WARN) != "") && (end($CRIT) != "")) {
@@ -96,9 +94,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 			$def[0] .= rrd::hrule(end($CRIT), $col_CRIT, "Critical  ".end($CRIT).end($UNIT)."\g");
 			$def[0] .= rrd::comment(")\g");
 		} 
-			
 		$def[0] .= rrd::comment("\:\\n");
-
 		$def[0] .= rrd::def("suite", end($RRDFILE), end($DS), "AVERAGE");
 		if ($c_last_index != "") {
 			$def[0] .= rrd::cdef("suite_diff", "suite,c_line_stackbase".$c_last_index.",UN,0,c_line_stackbase".$c_last_index.",IF,-");
@@ -109,7 +105,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 			$def[0] .= rrd::line1("c_line_stackbase".($c_last_index),"#00000000");
 			$def[0] .= rrd::line1("suite_diff", $col_suite_runtime_line, "",1 );
 		} else {
-			# no cases, no stacks
+			# no cases, no STACKing
 			$def[0] .= rrd::area("suite", $col_suite_runtime_area,$suitename );
 			$def[0] .= rrd::line1("suite", $col_suite_runtime_line, "" );
 		}
@@ -117,48 +113,32 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		$def[0] .= rrd::gprint("suite", "LAST", "%3.2lf ".end($UNIT)." LAST");
 		$def[0] .= rrd::gprint("suite", "MAX", "%3.2lf ".end($UNIT)." MAX");
 		$def[0] .= rrd::gprint("suite", "AVERAGE", "%3.2lf ".end($UNIT)." AVERAGE \j");
-
-
-		# invisible line above maximum (for space between MAX and TICKER)		
+		# invisible line above maximum (for space between MAX and TICKER) -------------------------------------	
 		$def[0] .= rrd::def("suite_max", end($RRDFILE), end($DS), "MAX") ;
 		$def[0] .= rrd::cdef("suite_maxplus", "suite_max,".$ticker_dist_factor.",*");
 		$def[0] .= rrd::line1("suite_maxplus", $col_invisible);
-	
-
-		# TICKER
+		# TICKER ---------------------------------------------------------------------
 		$idxm1 = count($this->DS)-1;
-
 		$def[0] .= rrd::def("suite_state", $RRDFILE[$idxm1], $DS[$idxm1], "MAX") ;
 		$def[0] .= rrd::cdef("suite_state_unknown", "suite_state,2,GT,suite_state,0,IF") ;
-#		$def[0] .= rrd::cdef("suite_state_ok", "suite_state,1,LT,1,0,IF") ;
 		$def[0] .= rrd::cdef("suite_state_nok", "suite_state,0,GT,suite_state,0,IF") ;
 		$def[0] .= rrd::cdef("suite_state_nok2", "suite_state_nok,3,LT,suite_state_nok,0,IF") ;
-#		$def[0] .= rrd::cdef("suite_state_crit", "suite_state_nok2,1,GT,suite_state_nok2,0,IF") ;
-#		$def[0] .= rrd::cdef("suite_state_warn", "suite_state_nok2,2,LT,suite_state_nok2,0,IF") ;
-
 		$def[0] .= "TICK:suite_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
-#		$def[0] .= "TICK:suite_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
-#		$def[0] .= "TICK:suite_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
 		$def[0] .= "TICK:suite_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
-
 		for ($i=1; $i<=$c_last_index; $i++) {
 			$def[0] .= "TICK:c_".$i."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
 		}
-
-
 }  
 
+# CASE Graphs  #############################################################
 foreach ($this->DS as $KEY=>$VAL) {
-
 	if(preg_match('/^c_(\d?)_(.*)/', $VAL['LABEL'], $c_matches)) {
 		$casecount = $c_matches[1];
 		$casename = $c_matches[2];
 		$ds_name[$casecount] = "Sahi Case $casename";
 		$opt[$casecount] = "--vertical-label \"seconds\"  -l 0 -M --slope-mode --title \"$servicedesc (Sahi case $casecount) on $hostname\" ";
 		$def[$casecount] = "";
-
-
-		# AREA
+		# STEP AREA ---------------------------------------------------------------------
 		foreach ($this->DS as $k=>$v) {
 			if (preg_match('/^s_'.$casecount.'_(\d?)_(.*)/', $v['LABEL'], $s_matches)) {
 				$stepcount = $s_matches[1];
@@ -180,13 +160,11 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$def[$casecount] .= rrd::gprint("s_area$stepcount", "AVERAGE", "%3.2lf $UNIT[$stepcount] AVERAGE \j");
 			}
 		}
-
-		# invisible line above maximum (for space between MAX and TICKER)		
+		# invisible line above maximum (for space between MAX and TICKER) ---------------	
 		$def[$casecount] .= rrd::def("case".$casecount."_max", $VAL['RRDFILE'], $VAL['DS'], "MAX") ;
 		$def[$casecount] .= rrd::cdef("case".$casecount."_maxplus", "case".$casecount."_max,".$ticker_dist_factor.",*");
 		$def[$casecount] .= rrd::line1("case".$casecount."_maxplus", $col_invisible);
-
-		# LINE
+		# STEP LINE ---------------------------------------------------------------------
 		$s_last_index = "";
 		foreach ($this->DS as $k=>$v) {
 			if (preg_match('/^s_'.$casecount.'_(\d?)_(.*)/', $v['LABEL'], $s_matches)) {
@@ -206,6 +184,7 @@ foreach ($this->DS as $KEY=>$VAL) {
 				$s_last_index = $stepcount;
 			}
 		}
+		# CASE Warn/Crit -----------------------------------------------------------------
 		$def[$casecount] .= rrd::comment(" \\n");
 		$def[$casecount] .= rrd::comment("Case ".$casecount ."\g");
 		if(($VAL["WARN"] != "") && ($VAL["CRIT"] != "")) {
@@ -214,10 +193,10 @@ foreach ($this->DS as $KEY=>$VAL) {
 			$def[$casecount] .= rrd::hrule($VAL["CRIT"], "#FF0000", "Critical  ".$VAL["CRIT"].$UNIT[$casecount]."\g");
 			$def[$casecount] .= rrd::comment(")\g");
 		}
-
+		# CASE LINE & AREA --------------------------------------------------------------
 		$def[$casecount] .= rrd::comment("\:\\n");
 	        $def[$casecount] .= rrd::def("case$casecount", $VAL['RRDFILE'], $VAL['DS'], "AVERAGE");
-		# is this a unknown value? 
+		# is this a unknown value?
 		$def[$casecount] .= rrd::cdef("case".$casecount."_unknown", "case$casecount,UN,1,0,IF");
 		if ($s_last_index != "") {
 			$def[$casecount] .= rrd::cdef("case_diff$casecount","case$casecount,s_line_stackbase$s_last_index,-");
@@ -232,36 +211,23 @@ foreach ($this->DS as $KEY=>$VAL) {
 			$def[$casecount] .= rrd::area   ("case$casecount", $col_case_area[$casecount].$col_case_area_opacity, $casename );
 			$def[$casecount] .= rrd::line1   ("case$casecount", $col_case_line[$casecount],"");
 		}
-
 		$def[$casecount] .= rrd::gprint ("case$casecount", "LAST", "%3.2lf $UNIT[$casecount] LAST");
 		$def[$casecount] .= rrd::gprint ("case$casecount", "MAX", "%3.2lf $UNIT[$casecount] MAX");
 		$def[$casecount] .= rrd::gprint ("case$casecount", "AVERAGE", "%3.2lf $UNIT[$casecount] AVERAGE \j");
-
-		# TICKS
+		# TICKS ---------------------------------------------------------------------
 		foreach ($this->DS as $k=>$v) {
 			if(preg_match('/^c_'.$casecount.'state/', $v['LABEL'], $state_matches)) {
 				$def[$casecount] .= rrd::def("case".$casecount."_state", $v['RRDFILE'], $v['DS'], "MAX") ;
-
-#					$def[$casecount] .= rrd::line1("case".$casecount."_state","#000033");	
 				$def[$casecount] .= rrd::cdef("case".$casecount."_state_unknown", "case".$casecount."_state,2,GT,case".$casecount."_state,0,IF") ;
-#				$def[$casecount] .= rrd::cdef("case".$casecount."_state_ok", "case".$casecount."_state,0.5,LT,1,0,IF") ;
 				$def[$casecount] .= rrd::cdef("case".$casecount."_state_nok", "case".$casecount."_state,0,GT,case".$casecount."_state,0,IF") ;
 				$def[$casecount] .= rrd::cdef("case".$casecount."_state_nok2", "case".$casecount."_state_nok,3,LT,case".$casecount."_state_nok,0,IF") ;
-#				$def[$casecount] .= rrd::cdef("case".$casecount."_state_crit", "case".$casecount."_state_nok2,1.5,GE,case".$casecount."_state_nok2,0,IF") ;
-#				$def[$casecount] .= rrd::cdef("case".$casecount."_state_warn", "case".$casecount."_state_nok2,1.5,LT,case".$casecount."_state_nok2,0,IF") ;
-
 				$def[$casecount] .= "TICK:case".$casecount."_state_nok2".$col_NOK.$ticker_opacity.":".$ticker_frac.":not_ok " ;
-#				$def[$casecount] .= "TICK:case".$casecount."_state_warn".$col_WARN.$ticker_opacity.":".$ticker_frac.": " ;
-#				$def[$casecount] .= "TICK:case".$casecount."_state_ok".$col_OK.$ticker_opacity.":".$ticker_frac.": " ;
 				$def[$casecount] .= "TICK:case".$casecount."_state_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
 			}
 		}
 		$def[$casecount] .= "TICK:case".$casecount."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
-
 	}
-
 }
-
 
 if ( $DEBUG == 1 ) {
 #throw new Kohana_exception(print_r($def,TRUE));

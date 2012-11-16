@@ -128,6 +128,7 @@ if (preg_match('/^check_sahi_db.*?suite/', $this->MACRO['CHECK_COMMAND'])) {
 		for ($i=1; $i<=$c_last_index; $i++) {
 			$def[0] .= "TICK:c_".$i."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.": " ;
 		}
+		$def[0] .= "VRULE:".$NAGIOS_TIMET."#000000:\"Last Service Check \\n\" ";
 }  
 
 # CASE Graphs  #############################################################
@@ -226,8 +227,10 @@ foreach ($this->DS as $KEY=>$VAL) {
 			}
 		}
 		$def[$casecount] .= "TICK:case".$casecount."_unknown".$col_UNKN.$unkn_tick_opacity.":".$unkn_tick_frac.":unknown/stale " ;
+		$def[$casecount] .= "VRULE:".$NAGIOS_TIMET."#000000:\"Last Service Check \\n\" ";
 	}
 }
+
 
 if ( $DEBUG == 1 ) {
 #throw new Kohana_exception(print_r($def,TRUE));

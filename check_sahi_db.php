@@ -8,7 +8,7 @@ $col_suite_runtime_line = '#CE0071';
 $col_suite_runtime_area = '#E73A98';
 
 # Case colors
-$col_case_line = array('','#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1');
+$col_case_line = array('','#225ea8','#0c2c84','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#edf8b1','#E9F698');
 $col_case_area = array('','#5692dc','#154be0','#5692DC','#1d91c0','#8ED4DC','#b6e2d8','#d7f0c7','#f3fac7');
 $col_case_area_opacity = "BB";
 

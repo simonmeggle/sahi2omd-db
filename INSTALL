@@ -1,0 +1,55 @@
+Install instructions
+==========================
+
+Remark: this is sahi2omd-db, the monitoring part of Sahi2OMD. You have to set up a 
+Sahi test machine with the Sahi2OMD extension available at 
+https://github.com/simonmeggle/sahi2omd. 
+
+1. Prerequisites
+You should have installed 
+  * a Nagios-compatible monitoring system
+  * check_mysql_health (http://labs.consol.de)
+  * PNP4Nagios 0.6 (http://www.pnp4nagios.org)
+  
+2. Installation
+
+2.1 Download files
+You should have downloaded already sahi2omd-db from https://github.com/simonmeggle/sahi2omd-db. 
+All files should be extracted ito a temp folder (e.g. /tmp). 
+
+2.2 Installation 
+
+2.2.1 CheckMySQLHealthSahi.pm
+Copy CheckMySQLHealthSahi.pm into the "mymodules-dyn-dir" folder of check_mysql_health. 
+This folder must have been given as an option to the "configure"-Script of 
+check_mysql_health ('--with-mymodules-dyn-dir'). 
+
+2.2.2 PNP
+
+2.2.2.1 Template files
+Copy check_sahi_case.php, check_sahi_db.php and check_sahi_suite.php into the 
+PNP4Nagios template folder. 
+Example for OMD: cp *.php /opt/omd/[site]/etc/pnp4nagios/templates
+
+2.2.2.2 Custom Template definition
+The results of Sahi suite checks (NSCA) and Sahi DB checks have to be stored using
+RRD Storage type "MULTIPLE". This means that every performance data label is saved 
+into a separate RRD file. For this, create custom template definition files
+  * check_sahi_db.cfg
+  * check_sahi_suite.cfg
+in the PNP 'check_commands' folder. 
+Example for OMD: 
+  * echo "RRD_STORAGE_TYPE = MULTIPLE" > /opt/omd/[site]/etc/pnp4nagios/check_commands/check_sahi_db.cfg
+  * echo "RRD_STORAGE_TYPE = MULTIPLE" > /opt/omd/[site]/etc/pnp4nagios/check_commands/check_sahi_suite.cfg
+
+More info on: http://docs.pnp4nagios.org/pnp-0.6/tpl_custom
+
+2.2.3 Nagios/Shinken/Icinga 
+2.2.3.1 Check Commands
+nagios/check_commands.cfg contains command definitions for case/suite DB checks.
+2.2.3.2 Services
+nagios/services.cfg contains examples of service definitions for case/suite DB checks. (NSCA checks are defined as 
+simple passive services.)
+
+
+

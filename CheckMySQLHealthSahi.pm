@@ -17,11 +17,11 @@ my %ERRDB = (
 );
 
 my %ERRDB2NAG = (
-        0       => 0,
-        1       => 1,
-        2       => 1,
-        3       => 2,
-        4       => 3,
+        0       => 0, 
+        1       => 1, # WARN: Step exceeded runtime
+        2       => 1, # WARN: Case exceeded warn runtime
+        3       => 2, # CRIT: Case exceeded crit runtime
+        4       => 2, # CRIT: Case threw exception 
 );
 
 my %STATELABELS = (
